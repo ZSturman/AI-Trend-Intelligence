@@ -1,0 +1,53 @@
+{
+  "name": "personalized-ai-trend-tracker",
+  "version": "1.0.0",
+  "description": "Personalized AI trend intelligence MVP for developers",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:setup": "node scripts/db-setup.mjs",
+    "db:migrate": "prisma migrate dev --name init",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "keywords": [
+    "ai",
+    "trends",
+    "developer-tools",
+    "nextjs",
+    "personalization"
+  ],
+  "author": "Codex",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "fast-xml-parser": "^5.5.9",
+    "lucide-react": "^1.7.0",
+    "next": "^15.5.14",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "resend": "^6.10.0",
+    "rss-parser": "^3.13.0",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.2",
+    "postcss": "^8.5.8",
+    "prisma": "^6.19.3",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2"
+  }
+}

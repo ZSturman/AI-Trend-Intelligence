@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ConnectorType {
+  GITHUB
+  WAKATIME
+  ACTIVITYWATCH
+}
+
+enum RecommendationSection {
+  ACT_NOW
+  MATCHED_TO_YOUR_WORK
+  WORTH_EVALUATING
+  KEEP_ON_RADAR
+}
+
+enum FeedbackType {
+  SAVED
+  DISMISSED
+  VIEWED
+}
+
+enum DigestDeliveryType {
+  DIGEST
+  ALERT
+}
+
+enum DetailLevel {
+  HEADLINE
+  CONCISE
+  ACTIONABLE
+}
+
+model User {
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  displayName        String?
+  interests          String               @default("")
+  focusAreas         String               @default("")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  deliveryPreference DeliveryPreference?
+  connectorAccounts  ConnectorAccount[]
+  telemetrySnapshots TelemetrySnapshot[]
+  profileSnapshots   ProfileSnapshot[]
+  trackedRepos       TrackedRepo[]
+  digests            Digest[]
+  feedback           UserFeedback[]
+  recommendations    Recommendation[]
+}
+
+model DeliveryPreference {
+  id             String      @id @default(cuid())
+  userId         String      @unique
+  cadence        String      @default("daily")
+  detailLevel    DetailLevel @default(CONCISE)
+  alertsEnabled  Boolean     @default(true)
+  digestEnabled  Boolean     @default(true)
+  alertThreshold Float       @default(0.82)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ConnectorAccount {
+  id           String        @id @default(cuid())
+  userId       String
+  type         ConnectorType
+  label        String
+  accountKey   String?
+  accessToken  String?
+  configJson   String        @default("{}")
+  active       Boolean       @default(true)
+  lastSyncedAt DateTime?
+  syncError    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+}
+
+model TelemetrySnapshot {
+  id            String        @id @default(cuid())
+  userId        String
+  connectorType ConnectorType
+  sourceLabel   String
+  summary       String
+  dataJson      String
+  signalCount   Int           @default(0)
+  capturedAt    DateTime      @default(now())
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProfileSnapshot {
+  id                String   @id @default(cuid())
+  userId            String
+  headline          String
+  summary           String
+  signalsJson       String
+  topLanguagesJson  String   @default("[]")
+  topFrameworksJson String   @default("[]")
+  topToolsJson      String   @default("[]")
+  topTopicsJson     String   @default("[]")
+  trackedReposJson  String   @default("[]")
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TrackedRepo {
+  id            String   @id @default(cuid())
+  userId        String
+  fullName      String
+  source        String   @default("manual")
+  activityScore Float    @default(0.5)
+  lastSeenAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fullName])
+}
+
+model SourceFeed {
+  id             String           @id @default(cuid())
+  key            String           @unique
+  label          String
+  kind           String
+  sourceType     String
+  url            String?
+  repoFullName   String?
+  description    String
+  trustScore     Float            @default(0.9)
+  baseTagsJson   String           @default("[]")
+  cadence        String           @default("daily")
+  active         Boolean          @default(true)
+  lastSyncedAt   DateTime?
+  lastSyncStatus String?
+  lastError      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  rawRecords     RawIngestRecord[]
+  contentItems   ContentItem[]
+}
+
+model RawIngestRecord {
+  id            String       @id @default(cuid())
+  sourceFeedId  String
+  contentItemId String?
+  fingerprint   String
+  payload       String
+  fetchedAt     DateTime     @default(now())
+  sourceFeed    SourceFeed   @relation(fields: [sourceFeedId], references: [id], onDelete: Cascade)
+  contentItem   ContentItem? @relation(fields: [contentItemId], references: [id], onDelete: SetNull)
+}
+
+model ContentItem {
+  id                   String           @id @default(cuid())
+  sourceFeedId         String?
+  dedupeKey            String           @unique
+  title                String
+  url                  String
+  canonicalUrl         String
+  domain               String
+  sourceName           String
+  sourceType           String
+  contentKind          String
+  author               String?
+  publishedAt          DateTime?
+  summary              String?
+  actionableSummary    String?
+  whyItMattersTemplate String?
+  tagsJson             String           @default("[]")
+  metadataJson         String           @default("{}")
+  trustScore           Float            @default(0.8)
+  ecosystemImportance  Float            @default(0.5)
+  actionability        Float            @default(0.5)
+  freshness            Float            @default(0.5)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  sourceFeed           SourceFeed?      @relation(fields: [sourceFeedId], references: [id], onDelete: SetNull)
+  itemTags             ItemTag[]
+  recommendations      Recommendation[]
+  rawRecords           RawIngestRecord[]
+  feedback             UserFeedback[]
+
+  @@index([publishedAt])
+  @@index([sourceType])
+}
+
+model ItemTag {
+  id            String      @id @default(cuid())
+  contentItemId String
+  label         String
+  category      String
+  weight        Float       @default(0.5)
+  source        String
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@index([contentItemId])
+  @@index([label])
+}
+
+model Recommendation {
+  id                  String                @id @default(cuid())
+  userId              String
+  contentItemId       String
+  section             RecommendationSection
+  finalScore          Float
+  personalRelevance   Float
+  ecosystemImportance Float
+  actionability       Float
+  freshness           Float
+  trustMultiplier     Float
+  rank                Int                   @default(0)
+  whyShown            String
+  whyItMatters        String
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentItem         ContentItem           @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  digestItems         DigestItem[]
+
+  @@unique([userId, contentItemId])
+  @@index([section, finalScore])
+}
+
+model Digest {
+  id          String             @id @default(cuid())
+  userId      String
+  type        DigestDeliveryType @default(DIGEST)
+  subject     String
+  previewText String
+  detailLevel DetailLevel
+  html        String
+  text        String
+  delivered   Boolean            @default(false)
+  deliveryRef String?
+  generatedAt DateTime           @default(now())
+  sentAt      DateTime?
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  digestItems DigestItem[]
+}
+
+model DigestItem {
+  id               String                @id @default(cuid())
+  digestId         String
+  recommendationId String
+  section          RecommendationSection
+  score            Float
+  title            String
+  url              String
+  digest           Digest                @relation(fields: [digestId], references: [id], onDelete: Cascade)
+  recommendation   Recommendation        @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+
+  @@index([digestId])
+}
+
+model UserFeedback {
+  id            String      @id @default(cuid())
+  userId        String
+  contentItemId String
+  type          FeedbackType
+  note          String?
+  createdAt     DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentItemId, type])
+}
